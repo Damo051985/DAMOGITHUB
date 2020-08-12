@@ -1,7 +1,4 @@
 # DAMOGITHUB
 Dan August Oca Github
-qqwqwwqwqw
-qwqwwq
-qwqwqw
-qwqwqwqw
-qwqwqw
+Hi I'm Dan Oca
+2nd branch
