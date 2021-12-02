@@ -1,0 +1,415 @@
+OBJECT Page 50627 Check License
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/15/18;
+    Time=11:30:10 AM;
+    Modified=Yes;
+    Version List=NSC-Tool;
+  }
+  PROPERTIES
+  {
+    PageType=Card;
+    OnOpenPage=BEGIN
+                 CurrPage.VersionPage.PAGE.ClearTmpRec;
+
+                 LicenseInfo1.GET(4);
+                 LicenseInfo2.GET(5);
+
+                 PopulateVersionList;
+
+                 VersionTextBuffer2.RESET;
+                 IF VersionTextBuffer2.FIND('-') THEN
+                   REPEAT
+                     CurrPage.VersionPage.PAGE.SetTMPRec(VersionTextBuffer2);
+                   UNTIL VersionTextBuffer2.NEXT = 0;
+                 CurrPage.VersionPage.PAGE.UpdatePage;
+               END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=General;
+                GroupType=Group }
+
+    { 1000000006;2;Field  ;
+                Name=Filter Object Exists;
+                SourceExpr=ExistFilter;
+                OnValidate=BEGIN
+                             CurrPage.LicencePage.PAGE.SetExistFilter(ExistFilter);
+                           END;
+                            }
+
+    { 1000000007;2;Group  ;
+                GroupType=Group }
+
+    { 1000000002;3;Field  ;
+                SourceExpr=LicenseInfo1.Text }
+
+    { 1000000005;3;Field  ;
+                SourceExpr=LicenseInfo2.Text }
+
+    { 1000000003;1;Part   ;
+                Name=LicencePage;
+                CaptionML=ENU=Object Permissions;
+                PagePartID=Page50628;
+                PartType=Page }
+
+    { 1000000004;1;Part   ;
+                Name=VersionPage;
+                CaptionML=ENU=Object Versions;
+                PagePartID=Page50629;
+                PartType=Page }
+
+  }
+  CODE
+  {
+    VAR
+      ">>License"@1000000003 : Integer;
+      LicenseInfo1@1000000007 : Record 2000000040;
+      LicenseInfo2@1000000008 : Record 2000000040;
+      ExistFilter@1000000004 : Boolean;
+      ">>Version"@1000000002 : Integer;
+      VersionTextBuffer@1000000001 : TEMPORARY Record 370;
+      VersionTextBuffer2@1000000000 : TEMPORARY Record 370;
+
+    PROCEDURE PopulateVersionList@50000();
+    VAR
+      Object@50000 : Record 2000000001;
+      IntPos@50001 : Integer;
+      BaseVersion@1000000000 : Text[250];
+      VersionText@1000000001 : Text[250];
+      i@1000000002 : Integer;
+    BEGIN
+      VersionTextBuffer.RESET;
+      VersionTextBuffer.DELETEALL;
+
+      i := 0;
+      Object.RESET;
+      Object.SETCURRENTKEY(Type,Name);
+      Object.SETFILTER("Version List",'<>%1','');
+      IF Object.FIND('-') THEN
+        REPEAT
+          WHILE STRPOS(Object."Version List",',') <> 0 DO BEGIN
+            i := i + 1;
+            VersionText := COPYSTR(Object."Version List",1,STRPOS(Object."Version List",',')-1);
+            Object."Version List" := COPYSTR(Object."Version List",STRPOS(Object."Version List",',')+1,STRLEN(Object."Version List"));
+            InsertVersionBuffer(VersionText,i);
+          END;
+          i := i + 1;
+          VersionText := Object."Version List";
+          InsertVersionBuffer(VersionText,i);
+        UNTIL Object.NEXT = 0;
+
+      i := 0;
+      VersionTextBuffer.RESET;
+      IF VersionTextBuffer.FIND('-') THEN
+        REPEAT
+          i := i + 1;
+          IntPos := FindFirstNo(VersionTextBuffer."Cell Value as Text");
+          IF IntPos > 0 THEN BEGIN
+            BaseVersion := COPYSTR(VersionTextBuffer."Cell Value as Text",1,IntPos-1);
+            CutVersion(VersionText,IntPos,BaseVersion);
+            InsertVersionBuffer2(VersionText,BaseVersion,i);
+          END;
+        UNTIL VersionTextBuffer.NEXT = 0;
+    END;
+
+    PROCEDURE InsertVersionBuffer@50008(VersionText@1000000000 : Text[250];i@1000000001 : Integer);
+    BEGIN
+      VersionTextBuffer.SETRANGE("Cell Value as Text",VersionText);
+      IF VersionTextBuffer.ISEMPTY THEN BEGIN
+        VersionTextBuffer.SETRANGE("Cell Value as Text");
+
+        VersionTextBuffer."Row No." := i;
+        VersionTextBuffer."Cell Value as Text" := VersionText;
+        VersionTextBuffer.INSERT;
+      END;
+    END;
+
+    PROCEDURE InsertVersionBuffer2@50001(NewVersion@50002 : Text[250];BaseVersion@1000000000 : Text[250];i@1000000001 : Integer);
+    VAR
+      HighestVersion@50000 : Text[250];
+      VersionInt@50001 : Text[250];
+    BEGIN
+      HighestVersion := '';
+
+      VersionTextBuffer2.SETRANGE("Cell Value as Text",BaseVersion);
+      IF VersionTextBuffer2.FIND('-') THEN BEGIN
+        REPEAT
+        IF HighestVersion < VersionTextBuffer2.Comment THEN
+          HighestVersion := VersionTextBuffer2.Comment;
+        UNTIL VersionTextBuffer2.NEXT = 0;
+        IF NewVersion > HighestVersion THEN BEGIN
+          VersionTextBuffer2.Comment := NewVersion;
+          VersionTextBuffer2.Formula := VersionTextBuffer."Cell Value as Text";
+          VersionTextBuffer2.MODIFY;
+        END;
+      END ELSE BEGIN
+        VersionTextBuffer2."Row No." := i;
+        VersionTextBuffer2."Cell Value as Text" := BaseVersion;
+        VersionTextBuffer2.Comment := NewVersion;
+        VersionTextBuffer2.Formula := VersionTextBuffer."Cell Value as Text";
+        VersionTextBuffer2.INSERT;
+      END;
+    END;
+
+    PROCEDURE FindFirstNo@50003(TextVar@50000 : Text[250]) : Integer;
+    VAR
+      TextInt@50002 : Integer;
+      i@50001 : Integer;
+    BEGIN
+      FOR i := 1 TO STRLEN(TextVar) DO BEGIN
+        IF EVALUATE(TextInt,COPYSTR(TextVar,i,1)) THEN
+          EXIT(i);
+      END;
+    END;
+
+    PROCEDURE CutVersion@1000000000(VAR VersionText@1000000002 : Text[250];IntPos@1000000000 : Integer;BaseVersion@1000000001 : Text[250]);
+    BEGIN
+      // Add baseversions in this function when needed
+      CASE TRUE OF
+        BaseVersion IN ['PM','PMBS']:
+          VersionText := COPYSTR(VersionTextBuffer."Cell Value as Text",
+            11,STRLEN(VersionTextBuffer."Cell Value as Text"));
+        BaseVersion = 'DKLL':
+          VersionText := COPYSTR(VersionTextBuffer."Cell Value as Text",
+            10,STRLEN(VersionTextBuffer."Cell Value as Text"));
+        ELSE
+          VersionText := COPYSTR(VersionTextBuffer."Cell Value as Text",
+            IntPos,STRLEN(VersionTextBuffer."Cell Value as Text"));
+      END;
+    END;
+
+    BEGIN
+    {
+      <Columbus NSC>
+        Written by Martin Jordt Hansen - Columbus NSC A/S
+        http://www.columbus.com/
+        mjh@columbusglobal.com
+
+        This code is provided with no warranties of any kind,
+        and you are using it entirely at your own responsibility.
+
+        You are free to use and modify these objects as you like and with no limitations,
+        provided that you do not delete this Documentation trigger
+        and do not put any other comments above this.
+      </Columbus NSC>
+    }
+    END.
+  }
+}
+
+OBJECT Page 50628 Check License Perm. Subform
+{
+  OBJECT-PROPERTIES
+  {
+    Date=08/11/18;
+    Time=12:37:00 PM;
+    Modified=Yes;
+    Version List=NSC-Tool;
+  }
+  PROPERTIES
+  {
+    CaptionML=ENU=Check License Perm. Subform;
+    SourceTable=Table2000000043;
+    SourceTableView=SORTING(Object Type,Object Number)
+                    WHERE(Object Type=FILTER(Table..Query));
+    PageType=CardPart;
+    OnOpenPage=BEGIN
+                 // RESET;
+                 SETFILTER("Object Number",'%1..%2',50000,99999);
+                 CLEARMARKS;
+
+                 IF ObjExistFilter THEN
+                   MARKEDONLY(TRUE);
+               END;
+
+    OnAfterGetRecord=BEGIN
+                       ObjExist := Obj.GET("Object Type",COMPANYNAME,"Object Number");
+                       IF NOT ObjExist THEN
+                         ObjExist := Obj.GET("Object Type",'',"Object Number");
+
+                       IF ObjExistFilter AND ObjExist THEN
+                         MARK;
+                     END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                CaptionML=ENU=License;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="Object Type" }
+
+    { 1000000003;2;Field  ;
+                SourceExpr="Object Number" }
+
+    { 1000000004;2;Field  ;
+                SourceExpr="Read Permission" }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="Insert Permission" }
+
+    { 1000000006;2;Field  ;
+                SourceExpr="Modify Permission" }
+
+    { 1000000007;2;Field  ;
+                SourceExpr="Delete Permission" }
+
+    { 1000000008;2;Field  ;
+                SourceExpr="Execute Permission" }
+
+    { 1000000009;2;Field  ;
+                CaptionML=ENU=Object Exists;
+                SourceExpr=ObjExist;
+                Editable=FALSE }
+
+  }
+  CODE
+  {
+    VAR
+      Obj@1000000001 : Record 2000000001;
+      ObjExist@1000000000 : Boolean;
+      ObjExistFilter@1000000002 : Boolean;
+
+    PROCEDURE SetExistFilter@1000000000(SetFilter@1000000000 : Boolean);
+    BEGIN
+      ObjExistFilter := SetFilter;
+
+      MARKEDONLY(FALSE);
+      CLEARMARKS;
+      IF ObjExistFilter THEN BEGIN
+        Obj.RESET;
+        IF Obj.FIND('-') THEN
+          REPEAT
+            GET(Obj.Type,Obj.ID);
+            MARK(TRUE);
+          UNTIL Obj.NEXT = 0;
+          MARKEDONLY(TRUE);
+      END;
+
+      CurrPage.UPDATE(FALSE);
+    END;
+
+    BEGIN
+    {
+      <Columbus NSC>
+        Written by Martin Jordt Hansen - Columbus NSC A/S
+        http://www.columbus.com/
+        mjh@columbusglobal.com
+
+        This code is provided with no warranties of any kind,
+        and you are using it entirely at your own responsibility.
+
+        You are free to use and modify these objects as you like and with no limitations,
+        provided that you do not delete this Documentation trigger
+        and do not put any other comments above this.
+      </Columbus NSC>
+    }
+    END.
+  }
+}
+
+OBJECT Page 50629 Check License Version Subform
+{
+  OBJECT-PROPERTIES
+  {
+    Date=02/15/18;
+    Time=11:30:57 AM;
+    Modified=Yes;
+    Version List=NSC-Tool;
+  }
+  PROPERTIES
+  {
+    CaptionML=[DAN=Check licens underformular;
+               ENU=Check License Version Subform];
+    SourceTable=Table370;
+    PageType=CardPart;
+    OnFindRecord=VAR
+                   Found@1000000000 : Boolean;
+                 BEGIN
+                   ExcelBuffer.COPY(Rec);
+                   Found := ExcelBuffer.FIND(Which);
+                   IF Found THEN
+                     Rec := ExcelBuffer;
+                   EXIT(Found);
+                 END;
+
+    OnNextRecord=VAR
+                   ResultSteps@1000000000 : Integer;
+                 BEGIN
+                   ExcelBuffer.COPY(Rec);
+                   ResultSteps := ExcelBuffer.NEXT(Steps);
+                   IF ResultSteps <> 0 THEN
+                     Rec := ExcelBuffer;
+                   EXIT(ResultSteps);
+                 END;
+
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                CaptionML=[DAN=Versioner;
+                           ENU=Versions];
+                SourceExpr=Formula }
+
+  }
+  CODE
+  {
+    VAR
+      ExcelBuffer@1000000000 : TEMPORARY Record 370;
+
+    PROCEDURE ClearTmpRec@1000000000();
+    BEGIN
+      ExcelBuffer.RESET;
+      ExcelBuffer.DELETEALL;
+    END;
+
+    PROCEDURE SetTMPRec@1000000001(VAR ExcelBuffer2@1000000000 : Record 370);
+    BEGIN
+      ExcelBuffer := ExcelBuffer2;
+      ExcelBuffer.INSERT;
+    END;
+
+    PROCEDURE UpdatePage@1000000002();
+    BEGIN
+      CurrPage.UPDATE;
+    END;
+
+    BEGIN
+    {
+      <Columbus NSC>
+        Written by Martin Jordt Hansen - Columbus NSC A/S
+        http://www.columbus.com/
+        mjh@columbusglobal.com
+
+        This code is provided with no warranties of any kind,
+        and you are using it entirely at your own responsibility.
+
+        You are free to use and modify these objects as you like and with no limitations,
+        provided that you do not delete this Documentation trigger
+        and do not put any other comments above this.
+      </Columbus NSC>
+    }
+    END.
+  }
+}
+
